@@ -1,5 +1,5 @@
 <?php
-require 'includes/db.php';
+require '../includes/db.php';
 
 $nome = $_POST['nome'];
 $email = $_POST['email'];
@@ -20,6 +20,12 @@ $res = $stmt->get_result();
 if ($res->num_rows > 0) {
   die("Este e-mail já está registado.");
 }
+
+// Adicione na inserção
+$username = $_POST['username'];
+$sql = "INSERT INTO utilizadores (nome, username, email, senha, tipo) VALUES (?, ?, ?, ?, ?)";
+$stmt = $conn->prepare($sql);
+$stmt->bind_param("sssss", $nome, $username, $email, $senha_hash, $tipo);
 
 // Inserir na BD
 $sql = "INSERT INTO utilizadores (nome, email, senha, tipo) VALUES (?, ?, ?, 'aluno')";

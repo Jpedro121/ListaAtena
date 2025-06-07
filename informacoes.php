@@ -8,9 +8,10 @@ require 'includes/db.php';
   <title>Informações</title>
   <?php include 'includes/head.html'; ?>
 </head>
-<body>
+<body class="d-flex flex-column min-vh-100">
   <?php include 'includes/header.php'; ?>
-  <main>
+
+  <main class="flex-grow-1 container py-4">
     <h2>Notícias e Informações</h2>
 
     <?php
@@ -20,7 +21,7 @@ require 'includes/db.php';
     if ($result->num_rows > 0):
       while ($info = $result->fetch_assoc()):
     ?>
-      <div class="info-bloco">
+      <div class="info-bloco mb-4">
         <h3><?= htmlspecialchars($info['titulo']) ?></h3>
         <p><small><em>Publicado em: <?= $info['data_publicacao'] ?></em></small></p>
         <p><?= nl2br(htmlspecialchars($info['conteudo'])) ?></p>
@@ -32,8 +33,7 @@ require 'includes/db.php';
     endif;
     ?>
   </main>
-  <footer>
-    <p>&copy; 2025 Associação de Estudantes</p>
-  </footer>
+
+  <?php include 'includes/footer.php'; ?>
 </body>
 </html>
