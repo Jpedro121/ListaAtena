@@ -1,29 +1,38 @@
 <?php
+session_start();
+if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
+    header('Location: login/login.php?erro=5');
+    exit;
+}
+
 require 'includes/db.php';
+require 'includes/functions.php';
 
-if (!isset($_GET['id'])) {
+$id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
+if (!$id) {
     header('Location: eventos.php');
     exit;
 }
 
-$id = $_GET['id'];
-$sql = "SELECT * FROM eventos WHERE id = ?";
-$stmt = $conn->prepare($sql);
-$stmt->bind_param("i", $id);
-$stmt->execute();
-$result = $stmt->get_result();
-$evento = $result->fetch_assoc();
-
+$evento = buscarEventoPorId($conn, $id);
 if (!$evento) {
-    header('Location: eventos.php');
+    include 'includes/head.html';
+    include 'includes/header.php';
+    echo '<main class="container mt-4"><div class="alert alert-warning">Evento não encontrado.</div></main>';
+    include 'includes/footer.php';
     exit;
 }
-?>
 
+// Evita path traversal em imagens
+$imagemSegura = isset($evento['imagem']) ? basename($evento['imagem']) : '';
+?>
 <!DOCTYPE html>
 <html lang="pt">
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title><?= htmlspecialchars($evento['titulo']) ?></title>
+  <meta name="description" content="<?= htmlspecialchars(substr($evento['descricao'], 0, 150)) ?>">
   <?php include 'includes/head.html'; ?>
 </head>
 <body>
@@ -43,8 +52,10 @@ if (!$evento) {
           <?php endif; ?>
         </p>
         
-        <?php if ($evento['imagem']): ?>
-          <img src="static/eventos/<?= htmlspecialchars($evento['imagem']) ?>" class="img-fluid rounded mb-4" alt="<?= htmlspecialchars($evento['titulo']) ?>">
+        <?php if ($imagemSegura): ?>
+          <img src="static/eventos/<?= htmlspecialchars($imagemSegura) ?>"
+               class="img-fluid rounded mb-4"
+               alt="Imagem do evento <?= htmlspecialchars($evento['titulo']) ?>">
         <?php endif; ?>
         
         <div class="mb-4">
@@ -57,21 +68,13 @@ if (!$evento) {
           <div class="card-body">
             <h5 class="card-title">Informações</h5>
             <ul class="list-group list-group-flush">
-              <li class="list-group-item">
-                <strong>Tipo:</strong> <?= ucfirst($evento['tipo']) ?>
-              </li>
-              <li class="list-group-item">
-                <strong>Data:</strong> <?= date('d/m/Y', strtotime($evento['data'])) ?>
-              </li>
+              <li class="list-group-item"><strong>Tipo:</strong> <?= ucfirst(htmlspecialchars($evento['tipo'])) ?></li>
+              <li class="list-group-item"><strong>Data:</strong> <?= date('d/m/Y', strtotime($evento['data'])) ?></li>
               <?php if ($evento['hora']): ?>
-              <li class="list-group-item">
-                <strong>Hora:</strong> <?= date('H:i', strtotime($evento['hora'])) ?>
-              </li>
+              <li class="list-group-item"><strong>Hora:</strong> <?= date('H:i', strtotime($evento['hora'])) ?></li>
               <?php endif; ?>
               <?php if ($evento['local']): ?>
-              <li class="list-group-item">
-                <strong>Local:</strong> <?= htmlspecialchars($evento['local']) ?>
-              </li>
+              <li class="list-group-item"><strong>Local:</strong> <?= htmlspecialchars($evento['local']) ?></li>
               <?php endif; ?>
             </ul>
           </div>

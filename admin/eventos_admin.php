@@ -2,9 +2,19 @@
 require '../includes/db.php';
 require '../includes/check_admin.php';
 
+// Gerar token CSRF
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
 // Processar formulário apenas se for POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Validar campos obrigatórios
+    // Verificar CSRF
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+        die("Token CSRF inválido");
+    }
+
+    // Validar campos
     $campos_obrigatorios = ['titulo', 'data', 'descricao', 'tipo'];
     $dados = [];
     $erros = [];
@@ -13,29 +23,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($_POST[$campo])) {
             $erros[] = "O campo $campo é obrigatório.";
         } else {
-            $dados[$campo] = trim($_POST[$campo]);
+            $dados[$campo] = htmlspecialchars(trim($_POST[$campo]), ENT_QUOTES, 'UTF-8');
+            
+            // Validações específicas
+            if ($campo === 'data' && !strtotime($dados[$campo])) {
+                $erros[] = "Data inválida";
+            }
         }
     }
     
     // Processar campos opcionais
     $dados['hora'] = !empty($_POST['hora']) ? $_POST['hora'] : null;
-    $dados['local'] = !empty($_POST['local']) ? $_POST['local'] : null;
+    $dados['local'] = !empty($_POST['local']) ? htmlspecialchars(trim($_POST['local']), ENT_QUOTES, 'UTF-8') : null;
     
     // Processar upload de imagem
     $imagem = null;
     if (!empty($_FILES['imagem']['name'])) {
-        $ext = pathinfo($_FILES['imagem']['name'], PATHINFO_EXTENSION);
-        $imagem = uniqid() . '.' . $ext;
-        $target_dir = "../static/eventos/";
+        $allowed = ['jpg', 'jpeg', 'png', 'gif'];
+        $ext = strtolower(pathinfo($_FILES['imagem']['name'], PATHINFO_EXTENSION));
         
-        if (!move_uploaded_file($_FILES['imagem']['tmp_name'], $target_dir . $imagem)) {
-            $erros[] = "Erro ao fazer upload da imagem.";
+        if (!in_array($ext, $allowed)) {
+            $erros[] = "Tipo de arquivo não permitido. Use apenas JPG, PNG ou GIF.";
+        } elseif ($_FILES['imagem']['size'] > 2000000) {
+            $erros[] = "Arquivo muito grande. Tamanho máximo: 2MB";
+        } else {
+            $imagem = uniqid('img_', true) . '.' . $ext;
+            $target_dir = "../static/eventos/";
+            
+            if (!move_uploaded_file($_FILES['imagem']['tmp_name'], $target_dir . $imagem)) {
+                $erros[] = "Erro ao fazer upload da imagem.";
+            }
         }
     }
     
     // Se não houver erros, inserir no banco
     if (empty($erros)) {
         try {
+            $conn->begin_transaction();
+            
             $stmt = $conn->prepare("INSERT INTO eventos 
                                   (titulo, data, hora, local, descricao, tipo, imagem) 
                                   VALUES (?, ?, ?, ?, ?, ?, ?)");
@@ -51,20 +76,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             );
             
             if ($stmt->execute()) {
+                $conn->commit();
                 header('Location: eventos_admin.php?success=1');
                 exit;
             }
         } catch (mysqli_sql_exception $e) {
-            $erros[] = "Erro no banco de dados: " . $e->getMessage();
+            $conn->rollback();
+            error_log("Erro ao inserir evento: " . $e->getMessage());
+            $erros[] = "Ocorreu um erro ao processar seu pedido. Tente novamente.";
+            
+            // Remover imagem se o upload foi feito mas o BD falhou
+            if (!empty($imagem) && file_exists($target_dir . $imagem)) {
+                unlink($target_dir . $imagem);
+            }
         }
     }
 }
 
-// Obter eventos existentes
-$sql = "SELECT * FROM eventos ORDER BY data DESC";
+// Obter eventos existentes (apenas colunas necessárias)
+$sql = "SELECT id, titulo, data, hora, local, tipo FROM eventos ORDER BY data DESC";
 $result = $conn->query($sql);
 ?>
-
 <!DOCTYPE html>
 <html lang="pt">
 <head>

@@ -2,18 +2,30 @@
 require '../includes/check_admin.php';
 require '../includes/db.php';
 
+// Verifica se o usuário tem permissão de admin
+if ($_SESSION['tipo'] !== 'admin') {
+    header('Location: ../index.php');
+    exit();
+}
+
 // Estatísticas para o dashboard
-$sql_users = "SELECT COUNT(*) as total FROM utilizadores";
-$result_users = $conn->query($sql_users);
-$total_users = $result_users->fetch_assoc()['total'];
+try {
+    $sql_users = "SELECT COUNT(*) as total FROM utilizadores";
+    $result_users = $conn->query($sql_users);
+    $total_users = $result_users ? $result_users->fetch_assoc()['total'] : 0;
 
-$sql_events = "SELECT COUNT(*) as total FROM eventos";
-$result_events = $conn->query($sql_events);
-$total_events = $result_events->fetch_assoc()['total'];
+    $sql_events = "SELECT COUNT(*) as total FROM eventos";
+    $result_events = $conn->query($sql_events);
+    $total_events = $result_events ? $result_events->fetch_assoc()['total'] : 0;
 
-$sql_active_events = "SELECT COUNT(*) as total FROM eventos WHERE data >= CURDATE()";
-$result_active_events = $conn->query($sql_active_events);
-$active_events = $result_active_events->fetch_assoc()['total'];
+    $sql_active_events = "SELECT COUNT(*) as total FROM eventos WHERE data >= CURDATE()";
+    $result_active_events = $conn->query($sql_active_events);
+    $active_events = $result_active_events ? $result_active_events->fetch_assoc()['total'] : 0;
+} catch (Exception $e) {
+    // Log do erro
+    error_log("Erro ao carregar estatísticas: " . $e->getMessage());
+    $total_users = $total_events = $active_events = 0;
+}
 ?>
 
 <!DOCTYPE html>
@@ -40,6 +52,16 @@ $active_events = $result_active_events->fetch_assoc()['total'];
     .admin-sidebar .nav-link.active {
       color: white;
       background-color: rgba(255, 215, 0, 0.2);
+    }
+    
+    /* Mobile improvements */
+    @media (max-width: 768px) {
+      .stat-card {
+        margin-bottom: 15px;
+      }
+      .admin-sidebar {
+        min-height: auto;
+      }
     }
   </style>
 </head>
@@ -90,7 +112,7 @@ $active_events = $result_active_events->fetch_assoc()['total'];
                 <div class="d-flex justify-content-between">
                   <div>
                     <h6 class="card-title">UTILIZADORES</h6>
-                    <h2 class="mb-0"><?= $total_users ?></h2>
+                    <h2 class="mb-0"><?= htmlspecialchars($total_users) ?></h2>
                   </div>
                   <i class="bi bi-people" style="font-size: 2rem; opacity: 0.3;"></i>
                 </div>
@@ -103,7 +125,7 @@ $active_events = $result_active_events->fetch_assoc()['total'];
                 <div class="d-flex justify-content-between">
                   <div>
                     <h6 class="card-title">EVENTOS</h6>
-                    <h2 class="mb-0"><?= $total_events ?></h2>
+                    <h2 class="mb-0"><?= htmlspecialchars($total_events) ?></h2>
                   </div>
                   <i class="bi bi-calendar-event" style="font-size: 2rem; opacity: 0.3;"></i>
                 </div>
@@ -116,7 +138,7 @@ $active_events = $result_active_events->fetch_assoc()['total'];
                 <div class="d-flex justify-content-between">
                   <div>
                     <h6 class="card-title">EVENTOS ATIVOS</h6>
-                    <h2 class="mb-0"><?= $active_events ?></h2>
+                    <h2 class="mb-0"><?= htmlspecialchars($active_events) ?></h2>
                   </div>
                   <i class="bi bi-calendar-check" style="font-size: 2rem; opacity: 0.3;"></i>
                 </div>
@@ -132,38 +154,44 @@ $active_events = $result_active_events->fetch_assoc()['total'];
           </div>
           <div class="card-body">
             <?php
-            $sql_recent_events = "SELECT * FROM eventos ORDER BY data DESC LIMIT 5";
-            $result_recent_events = $conn->query($sql_recent_events);
-            
-            if ($result_recent_events->num_rows > 0):
+            try {
+                $sql_recent_events = "SELECT * FROM eventos ORDER BY data DESC LIMIT 5";
+                $result_recent_events = $conn->query($sql_recent_events);
+                
+                if ($result_recent_events && $result_recent_events->num_rows > 0):
+                ?>
+                <div class="table-responsive">
+                  <table class="table table-hover">
+                    <thead>
+                      <tr>
+                        <th>Título</th>
+                        <th>Data</th>
+                        <th>Tipo</th>
+                        <th>Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <?php while ($evento = $result_recent_events->fetch_assoc()): ?>
+                      <tr>
+                        <td><?= htmlspecialchars($evento['titulo']) ?></td>
+                        <td><?= date('d/m/Y', strtotime($evento['data'])) ?></td>
+                        <td><?= ucfirst(htmlspecialchars($evento['tipo'])) ?></td>
+                        <td>
+                          <a href="editar_evento.php?id=<?= $evento['id'] ?>" class="btn btn-sm btn-secondary">Editar</a>
+                        </td>
+                      </tr>
+                      <?php endwhile; ?>
+                    </tbody>
+                  </table>
+                </div>
+                <?php else: ?>
+                  <p>Nenhum evento encontrado.</p>
+                <?php endif;
+            } catch (Exception $e) {
+                error_log("Erro ao carregar eventos recentes: " . $e->getMessage());
+                echo '<p class="text-danger">Ocorreu um erro ao carregar os eventos recentes.</p>';
+            }
             ?>
-            <div class="table-responsive">
-              <table class="table table-hover">
-                <thead>
-                  <tr>
-                    <th>Título</th>
-                    <th>Data</th>
-                    <th>Tipo</th>
-                    <th>Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <?php while ($evento = $result_recent_events->fetch_assoc()): ?>
-                  <tr>
-                    <td><?= htmlspecialchars($evento['titulo']) ?></td>
-                    <td><?= date('d/m/Y', strtotime($evento['data'])) ?></td>
-                    <td><?= ucfirst($evento['tipo']) ?></td>
-                    <td>
-                      <a href="editar_evento.php?id=<?= $evento['id'] ?>" class="btn btn-sm btn-secondary">Editar</a>
-                    </td>
-                  </tr>
-                  <?php endwhile; ?>
-                </tbody>
-              </table>
-            </div>
-            <?php else: ?>
-              <p>Nenhum evento encontrado.</p>
-            <?php endif; ?>
           </div>
         </div>
       </main>
