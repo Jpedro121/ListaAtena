@@ -2,25 +2,54 @@
 require 'includes/check_login.php';
 require 'includes/db.php';
 
-session_start();
-if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
+// Verificação robusta de sessão
+if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true || !isset($_SESSION['id'])) {
     header('Location: login/login.php?erro=5');
     exit;
 }
 
-// Obter dados do utilizador
-$user = [];
+// No início do arquivo, após obter os dados do usuário
+if (isset($_SESSION['success_message'])) {
+    $success_message = $_SESSION['success_message'];
+    unset($_SESSION['success_message']);
+}
+
+// Inicializa variáveis
+$user = [
+    'nome' => 'Não definido',
+    'email' => 'Não definido',
+    'tipo' => 'regular',
+    'data_registo' => null,
+    'ultimo_login' => null,
+    'foto_perfil' => null
+];
 $events = [];
+$error_message = '';
 $success_message = '';
 
 try {
-    // Dados do utilizador
-    $stmt = $conn->prepare("SELECT id, nome, email, tipo, data_registo, ultimo_login, foto_perfil FROM utilizadores WHERE id = ?");
+    // Consulta segura com alias explícitos
+  $stmt = $conn->prepare("SELECT 
+    id, 
+    nome, 
+    email, 
+    tipo, 
+    data_registo, 
+    ultimo_login,
+    foto_perfil
+    FROM utilizadores 
+    WHERE id = ?");
     $stmt->bind_param("i", $_SESSION['id']);
     $stmt->execute();
-    $user = $stmt->get_result()->fetch_assoc();
+    $result = $stmt->get_result();
+    
+    if ($result->num_rows > 0) {
+        $user = array_merge($user, $result->fetch_assoc());
+    } else {
+        throw new Exception("Usuário não encontrado");
+    }
 
-    // Eventos do utilizador
+    // Consulta de eventos
     $stmt = $conn->prepare("SELECT e.id, e.titulo, e.data, e.hora, e.imagem, e.local 
                            FROM eventos e 
                            JOIN inscricoes_eventos i ON e.id = i.id_evento 
@@ -30,37 +59,11 @@ try {
     $stmt->execute();
     $events = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
-    // Alteração de senha
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
-        $current_password = $_POST['current_password'];
-        $new_password = $_POST['new_password'];
-        $confirm_password = $_POST['confirm_password'];
-
-        $stmt = $conn->prepare("SELECT password FROM utilizadores WHERE id = ?");
-        $stmt->bind_param("i", $_SESSION['id']);
-        $stmt->execute();
-        $db_password = $stmt->get_result()->fetch_assoc()['password'];
-
-        if (!password_verify($current_password, $db_password)) {
-            throw new Exception("Senha atual incorreta");
-        }
-
-        if ($new_password !== $confirm_password) {
-            throw new Exception("As senhas não coincidem");
-        }
-
-        if (strlen($new_password) < 8) {
-            throw new Exception("Senha deve ter 8+ caracteres");
-        }
-
-        $stmt = $conn->prepare("UPDATE utilizadores SET password = ? WHERE id = ?");
-        $stmt->bind_param("si", password_hash($new_password, PASSWORD_DEFAULT), $_SESSION['id']);
-        $stmt->execute();
-        $success_message = "Senha alterada com sucesso!";
-    }
 } catch (Exception $e) {
-    $error_message = $e->getMessage();
+    $error_message = "Erro ao carregar dados: " . $e->getMessage();
+    error_log($error_message);
 }
+
 $conn->close();
 ?>
 
@@ -71,7 +74,7 @@ $conn->close();
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Meu Perfil</title>
   <?php include 'includes/head.html'; ?>
-  <link rel="stylesheet" href="css/perfil.css">
+  <link rel="stylesheet" href="static/perfil.css">
 </head>
 <body>
   <?php include 'includes/header.php'; ?>

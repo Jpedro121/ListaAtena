@@ -3,7 +3,7 @@ session_start();
 
 require '../includes/db.php';
 
-// Se não usa CSRF token, comente essa parte
+// Proteção contra CSRF
 if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
     header('Location: login.php?erro=5');
     exit;
@@ -90,10 +90,9 @@ if ($result->num_rows === 1) {
         $update_stmt->execute();
         $update_stmt->close();
 
-        // Regenera sessão para segurança
+        // Regenera sessão
         session_regenerate_id(true);
 
-        // Cria variáveis de sessão
         $_SESSION['loggedin'] = true;
         $_SESSION['id'] = $user['id'];
         $_SESSION['nome'] = htmlspecialchars($user['nome'], ENT_QUOTES, 'UTF-8');
@@ -101,6 +100,8 @@ if ($result->num_rows === 1) {
         $_SESSION['ip'] = $_SERVER['REMOTE_ADDR'];
         $_SESSION['user_agent'] = $_SERVER['HTTP_USER_AGENT'] ?? 'Desconhecido';
         $_SESSION['ultima_atividade'] = time();
+        $_SESSION['created'] = time(); 
+
 
         // Cookie lembrar-me
         if ($lembrar) {
@@ -108,7 +109,6 @@ if ($result->num_rows === 1) {
             $hashToken = hash('sha256', $token);
             $expira = time() + 60 * 60 * 24 * 30; // 30 dias
 
-            // Insere token no banco (confirme se tabela auth_tokens existe)
             $sql = "INSERT INTO auth_tokens (user_id, token_hash, expira_em) VALUES (?, ?, ?)";
             $stmt = $conn->prepare($sql);
             $stmt->bind_param("iss", $user['id'], $hashToken, date('Y-m-d H:i:s', $expira));
@@ -121,7 +121,7 @@ if ($result->num_rows === 1) {
                 $expira,
                 '/',
                 '',
-                false, // Mude para true se usar HTTPS
+                false, // true se HTTPS
                 true
             );
         }
@@ -129,13 +129,14 @@ if ($result->num_rows === 1) {
         registrarTentativaLogin($login, true, $conn);
         header('Location: ../home.php');
         exit;
+
     } else {
-        // Incrementa tentativas falhas
+        // Senha errada — incrementa tentativas
         $tentativas = $user['tentativas_login'] + 1;
         $bloqueado_ate = null;
 
         if ($tentativas >= 5) {
-            $bloqueado_ate = date('Y-m-d H:i:s', time() + 900); // bloqueio 15 minutos
+            $bloqueado_ate = date('Y-m-d H:i:s', time() + 900); // bloqueia 15 min
         }
 
         $update_sql = "UPDATE utilizadores SET tentativas_login = ?, bloqueado_ate = ? WHERE id = ?";
@@ -148,6 +149,6 @@ if ($result->num_rows === 1) {
     }
 }
 
-// Redireciona para login com erro genérico
+// Erro genérico
 header('Location: login.php?erro=1');
 exit;
