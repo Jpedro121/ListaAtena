@@ -66,7 +66,6 @@ try {
   </style>
 </head>
 <body>
-  <?php include '../includes/header.php'; ?>
 
   <div class="container-fluid">
     <div class="row">

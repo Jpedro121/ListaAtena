@@ -110,6 +110,13 @@ $conn->close();
         <?php include 'includes/profile_events_card.php'; ?>
       </div>
     </div>
+    <?php if ($user['tipo'] === 'admin'): ?>
+  <div class="mt-3">
+    <a href="admin/" class="btn btn-warning">
+      Ir para o Dashboard
+    </a>
+  </div>
+<?php endif; ?>
   </main>
 
   <?php include 'includes/avatar_modal.php'; ?>

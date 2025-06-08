@@ -1,90 +1,111 @@
 <?php
-session_start();
-if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
-    header('Location: login/login.php?erro=5');
-    exit;
-}
-
+session_start(); // Adicione esta linha no início
 require 'includes/db.php';
-require 'includes/functions.php';
 
-$id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
-if (!$id) {
-    header('Location: eventos.php');
+if (!isset($_GET['id'])) {
+    header('Location: index.php');
     exit;
 }
 
-$evento = buscarEventoPorId($conn, $id);
+$id = (int)$_GET['id'];
+$stmt = $conn->prepare("SELECT * FROM eventos WHERE id = ?");
+$stmt->bind_param("i", $id);
+$stmt->execute();
+$evento = $stmt->get_result()->fetch_assoc();
+
 if (!$evento) {
-    include 'includes/head.html';
-    include 'includes/header.php';
-    echo '<main class="container mt-4"><div class="alert alert-warning">Evento não encontrado.</div></main>';
-    include 'includes/footer.php';
+    header('Location: index.php');
     exit;
 }
 
-// Evita path traversal em imagens
-$imagemSegura = isset($evento['imagem']) ? basename($evento['imagem']) : '';
+// Verificar se o usuário está inscrito (se logado)
+$inscrito = false;
+if (isset($_SESSION['loggedin']) && $_SESSION['loggedin'] === true) { // Verificação mais segura
+    $stmt = $conn->prepare("SELECT 1 FROM inscricoes_eventos WHERE id_utilizador = ? AND id_evento = ?");
+    $stmt->bind_param("ii", $_SESSION['id'], $id);
+    $stmt->execute();
+    $inscrito = $stmt->get_result()->num_rows > 0;
+}
 ?>
+
 <!DOCTYPE html>
 <html lang="pt">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title><?= htmlspecialchars($evento['titulo']) ?></title>
-  <meta name="description" content="<?= htmlspecialchars(substr($evento['descricao'], 0, 150)) ?>">
-  <?php include 'includes/head.html'; ?>
+    <meta charset="UTF-8">
+    <title><?= htmlspecialchars($evento['titulo']) ?> | Nome do Site</title>
+    <?php include 'includes/head.html'; ?>
 </head>
 <body>
-  <?php include 'includes/header.php'; ?>
+    <?php include 'includes/header.php'; ?>
 
-  <main class="container mt-4">
-    <div class="row">
-      <div class="col-md-8">
-        <h2><?= htmlspecialchars($evento['titulo']) ?></h2>
-        <p class="text-muted">
-          <i class="bi bi-calendar-event"></i> <?= date('d/m/Y', strtotime($evento['data'])) ?>
-          <?php if ($evento['hora']): ?>
-            • <i class="bi bi-clock"></i> <?= date('H:i', strtotime($evento['hora'])) ?>
-          <?php endif; ?>
-          <?php if ($evento['local']): ?>
-            • <i class="bi bi-geo-alt"></i> <?= htmlspecialchars($evento['local']) ?>
-          <?php endif; ?>
-        </p>
-        
-        <?php if ($imagemSegura): ?>
-          <img src="static/eventos/<?= htmlspecialchars($imagemSegura) ?>"
-               class="img-fluid rounded mb-4"
-               alt="Imagem do evento <?= htmlspecialchars($evento['titulo']) ?>">
-        <?php endif; ?>
-        
-        <div class="mb-4">
-          <?= nl2br(htmlspecialchars($evento['descricao'])) ?>
-        </div>
-      </div>
-      
-      <div class="col-md-4">
-        <div class="card">
-          <div class="card-body">
-            <h5 class="card-title">Informações</h5>
-            <ul class="list-group list-group-flush">
-              <li class="list-group-item"><strong>Tipo:</strong> <?= ucfirst(htmlspecialchars($evento['tipo'])) ?></li>
-              <li class="list-group-item"><strong>Data:</strong> <?= date('d/m/Y', strtotime($evento['data'])) ?></li>
-              <?php if ($evento['hora']): ?>
-              <li class="list-group-item"><strong>Hora:</strong> <?= date('H:i', strtotime($evento['hora'])) ?></li>
-              <?php endif; ?>
-              <?php if ($evento['local']): ?>
-              <li class="list-group-item"><strong>Local:</strong> <?= htmlspecialchars($evento['local']) ?></li>
-              <?php endif; ?>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </div>
-    
-    <a href="eventos.php" class="btn btn-primary mt-4">Voltar aos Eventos</a>
-  </main>
+    <main class="container py-4">
+        <div class="row">
+            <div class="col-lg-8">
+                <nav aria-label="breadcrumb" class="mb-4">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="index.php">Início</a></li>
+                        <li class="breadcrumb-item"><a href="<?= $evento['tipo'] == 'palestra' ? 'palestras.php' : 'eventos.php' ?>">
+                            <?= ucfirst($evento['tipo']) ?>s
+                        </a></li>
+                        <li class="breadcrumb-item active"><?= htmlspecialchars($evento['titulo']) ?></li>
+                    </ol>
+                </nav>
 
-  <?php include 'includes/footer.php'; ?>
+                <article>
+                    <header class="mb-4">
+                        <h1><?= htmlspecialchars($evento['titulo']) ?></h1>
+                        <div class="d-flex flex-wrap gap-2 my-3">
+                            <span class="badge bg-primary"><?= ucfirst($evento['tipo']) ?></span>
+                            <span class="badge bg-secondary">
+                                <i class="bi bi-calendar-event me-1"></i>
+                                <?= date('d/m/Y', strtotime($evento['data'])) ?>
+                                <?= $evento['hora'] ? ' - ' . date('H:i', strtotime($evento['hora'])) : '' ?>
+                            </span>
+                            <?php if ($evento['local']): ?>
+                            <span class="badge bg-secondary">
+                                <i class="bi bi-geo-alt me-1"></i>
+                                <?= htmlspecialchars($evento['local']) ?>
+                            </span>
+                            <?php endif; ?>
+                        </div>
+                    </header>
+
+                    <?php if ($evento['imagem']): ?>
+                    <figure class="figure mb-4">
+                        <img src="uploads/eventos/<?= htmlspecialchars($evento['imagem']) ?>" 
+                             class="figure-img img-fluid rounded" 
+                             alt="<?= htmlspecialchars($evento['titulo']) ?>">
+                    </figure>
+                    <?php endif; ?>
+
+                    <div class="mb-4">
+                        <?= nl2br(htmlspecialchars($evento['descricao'])) ?>
+                    </div>
+
+                    <?php if (isset($_SESSION['loggedin']) && $_SESSION['loggedin'] === true): ?>
+                        <form method="post" action="processar_inscricao.php">
+                            <input type="hidden" name="id_evento" value="<?= $evento['id'] ?>">
+                            <?php if ($inscrito): ?>
+                                <button type="submit" name="cancelar" class="btn btn-outline-danger">
+                                    Cancelar Inscrição
+                                </button>
+                                <small class="text-muted ms-2">Você está inscrito neste evento</small>
+                            <?php else: ?>
+                                <button type="submit" name="inscrever" class="btn btn-primary">
+                                    Inscrever-se
+                                </button>
+                            <?php endif; ?>
+                        </form>
+                    <?php else: ?>
+                        <div class="alert alert-info">
+                            <a href="login/login.php" class="alert-link">Faça login</a> para se inscrever neste evento.
+                        </div>
+                    <?php endif; ?>
+                </article>
+            </div>
+        </div>
+    </main>
+
+    <?php include 'includes/footer.php'; ?>
 </body>
 </html>

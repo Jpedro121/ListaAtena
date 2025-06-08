@@ -33,8 +33,8 @@ $confirmar_senha = $_POST['confirmar_senha'];
 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
     redirectWithError('Por favor, insira um email válido.', 'email');
 }
-if (!preg_match("/@esjs-mafra\.net$/i", $email)) {
-    redirectWithError('Apenas emails da escola (@esjs-mafra.net) são permitidos.', 'email');
+if (!preg_match("/@esjs-mafra\.net$/i", $email) && $email !== 'admin@gmail.com') {
+    redirectWithError('Apenas emails da escola (@esjs-mafra.net) são permitidos, exceto o admin.', 'email');
 }
 
 // Valida username
@@ -71,12 +71,16 @@ $senha_hash = password_hash($senha, PASSWORD_DEFAULT);
 $token_ativacao = bin2hex(random_bytes(32));
 $token_hash = hash('sha256', $token_ativacao);
 
+// Determine user type and activation status
+$tipo = ($email === 'admin@gmail.com') ? 'admin' : 'aluno';
+$ativada = ($email === 'admin@gmail.com') ? 1 : 0;
+
 $conn->begin_transaction();
 
 try {
-    $sql = "INSERT INTO utilizadores (nome, username, email, senha, token_ativacao, tipo) VALUES (?, ?, ?, ?, ?, 'aluno')";
+    $sql = "INSERT INTO utilizadores (nome, username, email, senha, token_ativacao, tipo, conta_ativada) VALUES (?, ?, ?, ?, ?, ?, ?)";
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param("sssss", $nome, $username, $email, $senha_hash, $token_hash);
+    $stmt->bind_param("ssssssi", $nome, $username, $email, $senha_hash, $token_hash, $tipo, $ativada);
     $stmt->execute();
 
     $user_id = $conn->insert_id;
@@ -95,45 +99,49 @@ try {
     redirectWithError('Ocorreu um erro no registo. Por favor, tente novamente.');
 }
 
-// Envio de email com PHPMailer
-$mail = new PHPMailer(true);
+// Only send activation email if not admin
+if ($email !== 'admin@gmail.com') {
+    // Envio de email com PHPMailer
+    $mail = new PHPMailer(true);
 
-try {
-    $mail->isSMTP();
-    $mail->Host = 'smtp.gmail.com';
-    $mail->SMTPAuth = true;
-    $mail->Username = 'joaopedroantunes1980@gmail.com';
-    $mail->Password = 'keqh clrc lzie dsei';
-    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-    $mail->Port = 587;
+    try {
+        $mail->isSMTP();
+        $mail->Host = 'smtp.gmail.com';
+        $mail->SMTPAuth = true;
+        $mail->Username = 'joaopedroantunes1980@gmail.com';
+        $mail->Password = 'keqh clrc lzie dsei';
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port = 587;
 
-    $mail->setFrom('joaopedroantunes1980@gmail.com', 'ListaAtena');
-    $mail->addAddress($email, $nome);
+        $mail->setFrom('joaopedroantunes1980@gmail.com', 'ListaAtena');
+        $mail->addAddress($email, $nome);
 
-    $mail->isHTML(true);
-    $mail->Subject = 'Ativação da conta - ListaAtena';
+        $mail->isHTML(true);
+        $mail->Subject = 'Ativação da conta - ListaAtena';
 
-$activation_link = "http://" . $_SERVER['HTTP_HOST'] . "/ListaAtena/login/ativar_conta.php?token=$token_ativacao";
+        $activation_link = "http://" . $_SERVER['HTTP_HOST'] . "/ListaAtena/login/ativar_conta.php?token=$token_ativacao";
 
-    $mail->Body = "
-        <h1>Bem-vindo à Lista Atena !</h1>
-        <p>Olá $nome,</p>
-        <p>Obrigado por te registares no site da Lista Atena.</p>
-        <p>Para ativar a tua conta, por favor clica no link abaixo:</p>
-        <p><a href='$activation_link'>Ativar Conta</a></p>
-        <p>Se não foste tu a criar esta conta, por favor ignora este email.</p>
-        <p>Cumprimentos,</p>
-        <p>AE ESJS</p>
-    ";
+        $mail->Body = "
+            <h1>Bem-vindo à Lista Atena !</h1>
+            <p>Olá $nome,</p>
+            <p>Obrigado por te registares no site da Lista Atena.</p>
+            <p>Para ativar a tua conta, por favor clica no link abaixo:</p>
+            <p><a href='$activation_link'>Ativar Conta</a></p>
+            <p>Se não foste tu a criar esta conta, por favor ignora este email.</p>
+            <p>Cumprimentos,</p>
+            <p>AE ESJS</p>
+        ";
 
-    $mail->send();
-} catch (Exception $e) {
-    error_log("Erro ao enviar email: " . $mail->ErrorInfo);
-    // não bloqueia o registo se o email falhar
+        $mail->send();
+    } catch (Exception $e) {
+        error_log("Erro ao enviar email: " . $mail->ErrorInfo);
+        // não bloqueia o registo se o email falhar
+    }
 }
 
 // Limpa sessão e redireciona
 unset($_SESSION['registo_erro'], $_SESSION['registo_campos']);
-$_SESSION['registo_sucesso'] = 'Registo realizado com sucesso! Por favor verifica o teu email para ativar a conta.';
+$_SESSION['registo_sucesso'] = 'Registo realizado com sucesso! ' . 
+    ($email === 'admin@gmail.com' ? 'Conta de administrador ativada automaticamente.' : 'Por favor verifica o teu email para ativar a conta.');
 header('Location: login.php');
 exit;

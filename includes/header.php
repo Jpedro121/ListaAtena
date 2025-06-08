@@ -12,7 +12,7 @@
 <body>
 <header>
   <nav class="navbar navbar-expand-lg navbar-dark px-3" style="background-color: #001f3f;">
-    <a class="navbar-brand" href="/ListaAtena/">Lista Atena</a>
+    <a class="navbar-brand" href="/ListaAtena/">Lista Atena Logo</a>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMenu"
             aria-controls="navbarMenu" aria-expanded="false" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>

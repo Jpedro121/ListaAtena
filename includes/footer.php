@@ -32,14 +32,6 @@
               <i class="bi bi-globe text-warning me-2"></i> escola.esjs-mafra.net
             </a>
           </li>
-          <li class="mt-3">
-            <div class="social-icons">
-              <a href="#" class="text-light me-2"><i class="bi bi-facebook"></i></a>
-              <a href="#" class="text-light me-2"><i class="bi bi-instagram"></i></a>
-              <a href="#" class="text-light me-2"><i class="bi bi-twitter-x"></i></a>
-              <a href="#" class="text-light"><i class="bi bi-linkedin"></i></a>
-            </div>
-          </li>
         </ul>
       </div>
 
