@@ -1,9 +1,6 @@
 <?php
 session_start();
-if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
-    header('Location: login/login.php?erro=5');
-    exit;
-}
+
 ?>
 
 <!DOCTYPE html>
@@ -98,20 +95,12 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
       </div>
     </section>
 
-    <!-- Call to Action -->
-    <section class="bg-light py-5">
-      <div class="container text-center">
-        <h2 class="mb-4">Pronto para se envolver?</h2>
-        <p class="lead mb-4">Junte-se a nós e faça parte da mudança!</p>
-        <a href="participar.php" class="btn btn-primary btn-cta">Quero Participar</a>
-      </div>
-    </section>
+  
 
     <!-- Latest News/Events (optional) -->
     <?php
-    // Você pode incluir aqui um bloco dinâmico com os próximos eventos
-    // usando include ou fazendo uma query diretamente
-    // include 'includes/latest_events.php';
+    // Inclui um bloco dinâmico com os próximos eventos
+    include 'includes/latest_events.php';
     ?>
   </main>
 

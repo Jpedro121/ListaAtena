@@ -78,7 +78,7 @@ $ativada = ($email === 'admin@gmail.com') ? 1 : 0;
 $conn->begin_transaction();
 
 try {
-    $sql = "INSERT INTO utilizadores (nome, username, email, senha, token_ativacao, tipo, conta_ativada) VALUES (?, ?, ?, ?, ?, ?, ?)";
+    $sql = "INSERT INTO utilizadores (nome, username, email, senha, token_ativacao, tipo, ativo) VALUES (?, ?, ?, ?, ?, ?, ?)";
     $stmt = $conn->prepare($sql);
     $stmt->bind_param("ssssssi", $nome, $username, $email, $senha_hash, $token_hash, $tipo, $ativada);
     $stmt->execute();

@@ -1,6 +1,6 @@
 <?php
 session_start();
-require 'includes/db.php';
+require '../includes/db.php';
 
 if (!isset($_SESSION['loggedin'])) {
     header('Location: login.php');
@@ -46,7 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id_evento'])) {
         }
     }
     
-    header("Location: detalhes_evento.php?id=$idEvento");
+    header("Location: ../detalhes_evento.php?id=$idEvento");
     exit;
 }
 

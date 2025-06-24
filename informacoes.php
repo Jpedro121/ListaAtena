@@ -1,9 +1,5 @@
 <?php
 session_start();
-if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
-    header('Location: login/login.php?erro=5');
-    exit;
-}
 
 require 'includes/db.php';
 

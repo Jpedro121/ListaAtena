@@ -1,12 +1,6 @@
 <?php
 session_start();
 
-// Verifica se o usuário está logado
-if (!isset($_SESSION['loggedin'])) {
-    header('Location: ../login/login.php');
-    exit;
-}
-
 require 'includes/db.php';
 
 // Processa o formulário se for enviado

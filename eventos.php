@@ -15,12 +15,6 @@ if (isset($_GET['error'])) {
 
 date_default_timezone_set('Europe/Lisbon');
 
-session_start();
-if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
-    header('Location: login/login.php?erro=5');
-    exit;
-}
-
 require 'includes/db.php';
 
 // Buscar todos os eventos (para o calendário)

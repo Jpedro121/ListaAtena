@@ -83,7 +83,7 @@ if (isset($_SESSION['loggedin']) && $_SESSION['loggedin'] === true) { // Verific
                     </div>
 
                     <?php if (isset($_SESSION['loggedin']) && $_SESSION['loggedin'] === true): ?>
-                        <form method="post" action="processar_inscricao.php">
+                        <form method="post" action="admin/processar_inscricao.php">
                             <input type="hidden" name="id_evento" value="<?= $evento['id'] ?>">
                             <?php if ($inscrito): ?>
                                 <button type="submit" name="cancelar" class="btn btn-outline-danger">
